@@ -82,7 +82,17 @@ engine.on('ready', function () {
     // engine.deselectFile(0);
 });
 
-// torrent-worker can currently only support one download instance at a time
+var printInfo = setInterval(function() {
+    console.log('connected to ' + engine.swarm.wires.length + ' peers');
+    console.log('uploaded ' + engine.swarm.uploaded + ' bytes');
+    console.log('upload speed is ' + engine.swarm.uploadSpeed + ' bytes/second');
+    console.log('download speed is ' + engine.swarm.downloadSpeed + ' bytes/second');
+}, 1000);
+```
+
+## Changing Torrents
+```
+// torrent-worker can currently support only one download instance at a time
 // so make sure you're killing the previous instance correctly before starting a new one
 
 engine.kill(function() {
