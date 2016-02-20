@@ -1,11 +1,12 @@
 # Torrent Worker
-This module was created for use in [Powder Player](https://github.com/jaruba/PowderPlayer), it is a wrapper of [peerflix](https://github.com/mafintosh/peerflix).
+This module was created for use in [**Powder Player**](https://github.com/jaruba/PowderPlayer), it is a wrapper of [peerflix](https://github.com/mafintosh/peerflix).
 
 It's purpose is to launch `peerflix` in a node.js enabled web worker, clone the important parts of it's `engine` object back in the main thread, and keep this information updated.
 
 This is an important task as `torrent-stream` can be heavy on the main thread.
 
-*This module does not use the latest version of peerflix, it uses a personal fork of it and other forked dependencies.*
+**This module does not use the latest version of peerflix, it uses a personal fork of it and other forked dependencies.**
+
 (although it should work with the latest version too, I haven't tried)
 
 ## Install
