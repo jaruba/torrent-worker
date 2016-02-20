@@ -18,6 +18,37 @@ npm install torrent-worker
 
 Yes, add these 2 separately, even in `package.json`, it's the only way to make sure the relative path to `worker.js` will be correct.
 
+## Options
+
+```
+{
+                          // All the torrent-stream options:
+    connections: 100,     // Max amount of peers to be connected to.
+    uploads: 10,          // Number of upload slots.
+    tmp: '/tmp',          // Root folder for the files storage.
+                          // Defaults to '/tmp' or temp folder specific to your OS.
+                          // Each torrent will be placed into a separate folder under /tmp/torrent-stream/{infoHash}
+    path: '/tmp/my-file', // Where to save the files. Overrides `tmp`.
+    verify: true,         // Verify previously stored data before starting
+                          // Defaults to true
+    dht: true,            // Whether or not to use DHT to initialize the swarm.
+                          // Defaults to true
+    tracker: true,        // Whether or not to use trackers from torrent file or magnet link
+                          // Defaults to true
+    trackers: [
+        'udp://tracker.openbittorrent.com:80',
+        'udp://tracker.ccc.de:80'
+    ],
+                          // Allows to declare additional custom trackers to use
+                          // Defaults to empty
+    storage: myStorage(), // Use a custom storage backend rather than the default disk-backed one
+    port: 4593,           // Default peer port
+    
+                          // Torrent Worker specific options:
+    noSeeding: '1'        // defaults to null (always seed), '1' means stop seeding when download has completed
+}
+```
+
 ## Usage
 
 ```
