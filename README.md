@@ -85,9 +85,7 @@ engine.on('ready', function () {
 // torrent-worker can currently only support one download instance at a time
 // so make sure you're killing the previous instance correctly before starting a new one
 
-engine.kill();
-
-engine.on('killed', function() {
+engine.kill(function() {
    console.log('engine has been killed');
 });
 
