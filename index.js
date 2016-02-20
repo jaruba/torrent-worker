@@ -2,7 +2,6 @@
 var peerIo = false;
 var peerSocket = false;
 var events = require('events');
-var fs = require('fs');
 
 var torrentWorker = {
 	engine: false,
@@ -10,6 +9,7 @@ var torrentWorker = {
 	_workerBee: false,
 	_destroyedCB: false,
 	_removedCB: false,
+	_killCB: false,
 	_closedCB: false,
 	_portrange: 45032,
 	_unusedPort: function(cb) {
@@ -105,7 +105,8 @@ var torrentWorker = {
 							peerSocket.emit('discover', {});
 						};
 	
-						self.engine.kill = function() {
+						self.engine.kill = function(theCB) {
+							self._killCB = theCB;
 							peerSocket.emit('kill', {});
 						};
 	
@@ -123,24 +124,8 @@ var torrentWorker = {
 							peerSocket.emit('engineRemove', {});
 						};
 
-						var newFiles = data.files;
-						self.engine.files = newFiles.map(function (file, index) {
-					
-						  file.createReadStream = function (opts) {
-							  if (opts) {
-								var stream = fs.createReadStream(self.engine.path+'\\'+file.path, opts);
-								self.engine.streamFile(index, opts);
-							  } else {
-								var stream = fs.createReadStream(self.engine.path+'\\'+file.path);
-								self.engine.streamFile(index);
-							  }
-					
-					
-							return stream
-						  }
-					
-						  return file
-						})
+						self.engine.files = data.files;
+						
 						self.engine.emit('ready');
 					});
 					
@@ -165,6 +150,10 @@ var torrentWorker = {
 					});
 					
 					peerSocket.on('killed', function() {
+						if (self._killCB) {
+							self._killCB();
+							delete self._killCB;
+						}
 						self.engine.emit('killed');
 					});
 					
@@ -179,13 +168,6 @@ var torrentWorker = {
 						if (self._removedCB) {
 							self._removedCB();
 							delete self._removedCB;
-						}
-					});
-					
-					peerSocket.on('killed', function() {
-						if (self._closedCB) {
-							self._closedCB();
-							delete self._closedCB;
 						}
 					});
 	
