@@ -37,6 +37,18 @@ engine.on('download', function(piece) {
 
 engine.on('ready', function () {
     console.log('torrent is ready');
+    console.log('infoHash: ' + engine.infoHash);
+    console.log('download path: ' + engine.path);
+    console.log('torrent name: ' + engine.torrent.name);
+    console.log('total length: ' + engine.torrent.length);
+    console.log('files: ' + engine.files);
+    console.log('nr of pieces: ' + engine.torrent.pieces.length);
+    
+    // select file with index 1 to be downloaded:
+    // engine.selectFile(1);
+    
+    // don't download file at index 0:
+    // engine.deselectFile(0);
 });
 
 // torrent-worker can currently only support one download instance at a time
@@ -46,9 +58,13 @@ engine.kill();
 
 engine.on('killed', function() {
    console.log('engine has been killed');
-   // start a new instance
-   engine = worker.process(differentTorrent, differentOptions);
-   
-   // ...
 });
+
+// you don't need to wait for the last engine to be killed to start a new instance
+// but engine.kill() must be called before starting a new one
+
+engine = worker.process(differentTorrent, differentOptions);
+
+// ...
+
 ```
