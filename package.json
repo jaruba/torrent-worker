@@ -1,7 +1,7 @@
 {
   "name": "torrent-worker",
   "description": "Streaming torrent client in a web worker for Node.js",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": {
     "name": "Alexandru Branza",
     "url": "@jaruba"
