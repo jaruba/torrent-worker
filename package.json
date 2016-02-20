@@ -1,0 +1,15 @@
+{
+  "name": "torrent-worker",
+  "description": "Streaming torrent client in a web worker for Node.js",
+  "version": "0.0.1",
+  "author": {
+    "name": "Alexandru Branza",
+    "url": "@jaruba"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "socket.io": "*",
+    "socket.io-client": "*",
+    "peerflix": "jaruba/peerflix"
+  }
+}
