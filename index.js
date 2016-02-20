@@ -88,10 +88,6 @@ var torrentWorker = {
 							peerSocket.emit('selectFile', targetFile);
 						}
 	
-						self.engine.streamFile = function (targetFile, opts) {
-							peerSocket.emit('streamFile', { target: targetFile, opts: opts });
-						}
-	
 						self.engine.deselectFile = function (targetFile) {
 							self.engine.files[targetFile].selected = false;
 							peerSocket.emit('deselectFile', targetFile);
@@ -115,10 +111,6 @@ var torrentWorker = {
 	
 						self.engine.swarmSetPaused = function() {
 							peerSocket.emit('swarmSetPaused', false);
-						};
-	
-						self.engine.swarmSetPausedAct = function() {
-							peerSocket.emit('swarmSetPausedAct', {});
 						};
 	
 						self.engine.destroy = function(theCB) {

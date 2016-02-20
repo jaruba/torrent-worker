@@ -131,10 +131,6 @@ self.onmessage = function(msg) {
 			engine.swarm.paused = data;
 		});
 		
-		socket.on('swarmSetPausedAct', function (data) {
-			engine.swarm.pause();
-		});
-		
 		socket.on('listen', function () {
 			engine.listen();
 		});
@@ -145,14 +141,6 @@ self.onmessage = function(msg) {
 		
 		socket.on('deselectFile', function (data) {
 			engine.files[data].deselect();
-		});
-		
-		socket.on('streamFile', function (data) {
-			if (data.opts) {
-				engine.files[data.target].createReadStream(data.opts);
-			} else {
-				engine.files[data.target].createReadStream();
-			}
 		});
 		
 		socket.on('reset', function(objective) {
