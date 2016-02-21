@@ -1,7 +1,9 @@
 var peerflix = require('peerflix');
+var io = require('socket.io-client');
+var fs = require('fs');
+
 var downloadQueue = [];
 var infoInterval = false;
-var io = require('socket.io-client');
 var socket = false;
 
 function attachListeners() {
@@ -93,9 +95,32 @@ self.onmessage = function(msg) {
 				return function() {
 					dyingEngine.remove(function(deadEngine) {
 						return function() {
-							deadEngine.destroy(function() {
-								socket.emit('killed');
-							});
+							if (deadEngine.files[0].path.indexOf('/') > -1) {
+								var pathBreak = '/';
+								var folder = deadEngine.files[0].path.substr(0, deadEngine.files[0].path.indexOf('/'));
+							} else if (deadEngine.files[0].path.indexOf('\\') > -1) {
+								var pathBreak = '\\';
+								var folder = deadEngine.files[0].path.substr(0, deadEngine.files[0].path.indexOf('\\'));
+							}
+							if (folder) {
+								fs.lstat(deadEngine.path + pathBreak + folder, function(err, flData) {
+									if (!err && flData && flData.isDirectory()) {
+										fs.rmdir(deadEngine.path + pathBreak + folder, function() {
+											deadEngine.destroy(function() {
+												socket.emit('killed',deadEngine.path + pathBreak + folder);
+											});
+										});
+									} else {
+										deadEngine.destroy(function() {
+											socket.emit('killed',deadEngine.path + pathBreak + folder);
+										});
+									}
+								});
+							} else {
+								deadEngine.destroy(function() {
+									socket.emit('killed',deadEngine.path + pathBreak + folder);
+								});
+							}
 						}
 					}(dyingEngine));
 				}
@@ -110,7 +135,26 @@ self.onmessage = function(msg) {
 		
 		socket.on('engineRemove', function () {
 			engine.remove(function() {
-				socket.emit('engineRemoved', {});
+				if (engine.files[0].path.indexOf('/') > -1) {
+					var pathBreak = '/';
+					var folder = engine.files[0].path.substr(0, engine.files[0].path.indexOf('/'));
+				} else if (engine.files[0].path.indexOf('\\') > -1) {
+					var pathBreak = '\\';
+					var folder = engine.files[0].path.substr(0, engine.files[0].path.indexOf('\\'));
+				}
+				if (folder) {
+					fs.lstat(engine.path + pathBreak + folder, function(err, flData) {
+						if (!err && flData && flData.isDirectory()) {
+							fs.rmdir(engine.path + pathBreak + folder, function() {
+								socket.emit('engineRemoved', {});
+							});
+						} else {
+							socket.emit('engineRemoved', {});
+						}
+					});
+				} else {
+					socket.emit('engineRemoved', {});
+				}
 			});
 		});
 		
