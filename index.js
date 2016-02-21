@@ -171,6 +171,13 @@ var torrentWorker = {
 						}
 					});
 	
+					peerSocket.on('serverClosed', function(data) {
+						if (self._closedCB) {
+							self._closedCB();
+							delete self._closedCB;
+						}
+					});
+
 				});
 	
 				self._workerBee.postMessage(opts);
