@@ -45,14 +45,20 @@ Yes, add these 2 separately, even in `package.json`, it's the only way to make s
     port: 4593,           // Default peer port
     
                           // Torrent Worker specific options:
-    noSeeding: '1'        // defaults to null (always seed), '1' means stop seeding when download has completed
+    noSeeding: '1',       // defaults to null (always seed), '1' means stop seeding when download has completed
+	withResume: true      // defaults to false, if set to true it will also the download event for verified pieces too
 }
 ```
 
 ## Usage
 
 ```
-var worker = require('torrent-worker');
+var torrentWorker = require('torrent-worker');
+
+// every time you use 'new torrentWorker' it will start a new web worker
+// try to always kill unneeded workers and keep a low number
+// of simultaneous workers at a time
+var worker = new torrentWorker();
 
 var engine = worker.process(torrent, options);
 
@@ -90,20 +96,22 @@ var printInfo = setInterval(function() {
 }, 1000);
 ```
 
-## Changing Torrents
+## Stopping Workers
+At the end of a kill action the worker will be automatically terminated as well.
+
+As simultaneous workers can be used, you do not need to wait for a worker to be killed in order to start a new one.
+
 ```
-// torrent-worker can currently support only one download instance at a time
-// so make sure you're killing the previous instance correctly before starting a new one
+// terminates a worker and removes all downloaded files
 
 engine.kill(function() {
    console.log('engine has been killed');
 });
 
-// you don't need to wait for the last engine to be killed to start a new instance
-// but engine.kill() must be called before starting a new one
+// terminates a worker and does not removes the downloaded files
 
-engine = worker.process(differentTorrent, differentOptions);
-
-// ...
-
+engine.softKill(function() {
+   console.log('engine has been killed');
+});
 ```
+

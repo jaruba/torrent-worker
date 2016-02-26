@@ -4,11 +4,12 @@ var fs = require('fs');
 
 var downloadQueue = [];
 var infoInterval = false;
+var panicTimeout = false;
 var socket = false;
+var withResume = false;
+var isReady = false;
 
 function attachListeners() {
-
-	downloadQueue = [];
 
 	engine.server.on('listening', function() {
 		socket.emit('listening', {
@@ -55,17 +56,29 @@ function attachListeners() {
 				paused: engine.swarm.paused,
 			}
 		});
+		isReady = true;
 	});
 	
-	engine.on('download',function(pc) {
-		downloadQueue.push(pc);
-	});
+	if (!withResume) {
+		engine.on('download',function(pc) {
+			downloadQueue.push(pc);
+		});
+	} else {
+		engine.on('verify',function(pc) {
+			downloadQueue.push(pc);
+		});
+	}
 }
 
 self.onmessage = function(msg) {
 	
 	if (!socket) {
 		var objective = msg.data;
+		if (objective.withResume) {
+			withResume = true;
+		} else {
+			withResume = false;
+		}
 		var torLink = objective.target;
 		var powPort = objective.targetPort;
 		
@@ -75,9 +88,13 @@ self.onmessage = function(msg) {
 		delete objective.targetPort;
 		
 		
-		socket.emit('received', objective);
+		if (objective.torFile) {
+			var parseTorrent = require('parse-torrent');
+			var torLink = parseTorrent(require('fs').readFileSync(objective.torFile));
+		}
 	
 		engine = peerflix(torLink,objective);
+		isReady = false;
 		
 		attachListeners(engine);
 			
@@ -90,6 +107,11 @@ self.onmessage = function(msg) {
 		});
 		
 		socket.on('kill', function () {
+			isReady = false;
+			clearInterval(infoInterval);
+			panicTimeout = setTimeout(function() {
+				socket.emit('panic');
+			},3000);
 			var targetEngine = engine;
 			targetEngine.server.close(function(dyingEngine) {
 				return function() {
@@ -107,18 +129,24 @@ self.onmessage = function(msg) {
 									if (!err && flData && flData.isDirectory()) {
 										fs.rmdir(deadEngine.path + pathBreak + folder, function() {
 											deadEngine.destroy(function() {
-												socket.emit('killed',deadEngine.path + pathBreak + folder);
+												clearTimeout(panicTimeout);
+												socket.emit('killed',deadEngine.infoHash);
+												socket.disconnect();
 											});
 										});
 									} else {
 										deadEngine.destroy(function() {
-											socket.emit('killed',deadEngine.path + pathBreak + folder);
+											clearTimeout(panicTimeout);
+											socket.emit('killed',deadEngine.infoHash);
+											socket.disconnect();
 										});
 									}
 								});
 							} else {
 								deadEngine.destroy(function() {
-									socket.emit('killed',deadEngine.path + pathBreak + folder);
+									clearTimeout(panicTimeout);
+									socket.emit('killed',deadEngine.infoHash);
+									socket.disconnect();
 								});
 							}
 						}
@@ -126,10 +154,30 @@ self.onmessage = function(msg) {
 				}
 			}(targetEngine));
 		});
+
+		
+		socket.on('softKill', function () {
+			clearInterval(infoInterval);
+			panicTimeout = setTimeout(function() {
+				socket.emit('panic');
+			},3000);
+			var targetEngine = engine;
+			targetEngine.server.close(function(dyingEngine) {
+				return function() {
+					dyingEngine.destroy(function() {
+						clearTimeout(panicTimeout);
+						socket.emit('killed', dyingEngine.infoHash);
+						socket.disconnect();
+					});
+				}
+			}(targetEngine));
+		});
 		
 		socket.on('engineDestroy', function () {
+			isReady = false;
 			engine.destroy(function() {
-				socket.emit('engineDestroyed', {});
+				socket.emit('engineDestroyed', engine.infoHash);
+				socket.disconnect();
 			});
 		});
 		
@@ -156,6 +204,10 @@ self.onmessage = function(msg) {
 					socket.emit('engineRemoved', {});
 				}
 			});
+		});
+		
+		socket.on('error', function(err) {
+			socket.emit('error', err);
 		});
 		
 		socket.on('discover', function () {
@@ -191,36 +243,40 @@ self.onmessage = function(msg) {
 			torLink = objective.target;
 			delete objective.target;
 			engine = peerflix(torLink,objective);
+
+			isReady = false;
 			
 			attachListeners(engine);
 		});
 		
 		infoInterval = setInterval(function() {
-			var newFiles = [];
-			engine.files.forEach(function(el, ij) {
-				newFiles.push({
-					selected: el.selected,
-					name: el.name,
-					length: el.length,
-					offset: el.offset,
-					path: el.path
+			if (isReady) {
+				var newFiles = [];
+				engine.files.forEach(function(el, ij) {
+					newFiles.push({
+						selected: el.selected,
+						name: el.name,
+						length: el.length,
+						offset: el.offset,
+						path: el.path
+					});
 				});
-			});
-			socket.emit('info', {
-				amInterested: engine.amInterested,
-				files: newFiles,
-				swarm: {
-					wires: {
-						length: engine.swarm.wires.length
+				socket.emit('info', {
+					amInterested: engine.amInterested,
+					files: newFiles,
+					swarm: {
+						wires: {
+							length: engine.swarm.wires.length
+						},
+						downloadSpeed: engine.swarm.downloadSpeed(),
+						uploadSpeed: engine.swarm.uploadSpeed(),
+						uploaded: engine.swarm.uploaded,
+						paused: engine.swarm.paused
 					},
-					downloadSpeed: engine.swarm.downloadSpeed(),
-					uploadSpeed: engine.swarm.uploadSpeed(),
-					uploaded: engine.swarm.uploaded,
-					paused: engine.swarm.paused
-				},
-				downloadPieces: downloadQueue
-			});
-			downloadQueue = [];
+					downloadPieces: downloadQueue
+				});
+				downloadQueue = [];
+			}
 		},1000);
 		
 	}
