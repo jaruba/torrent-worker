@@ -7,6 +7,14 @@
     "url": "@jaruba"
   },
   "license": "MIT",
+  "homepage": "https://github.com/jaruba/torrent-worker",
+  "bugs": {
+    "url": "https://github.com/jaruba/torrent-worker/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jaruba/torrent-worker.git"
+  },
   "dependencies": {
     "socket.io": "*",
     "socket.io-client": "*",

@@ -46,7 +46,7 @@ Yes, add these 2 separately, even in `package.json`, it's the only way to make s
     
                           // Torrent Worker specific options:
     noSeeding: '1',       // defaults to null (always seed), '1' means stop seeding when download has completed
-	withResume: true      // defaults to false, if set to true it will also the download event for verified pieces too
+    withResume: true      // defaults to false, if set to true it will also the download event for verified pieces too
 }
 ```
 
