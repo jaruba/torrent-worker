@@ -1,3 +1,4 @@
+var bank = require('./lib/piece-bank');
 
 var torrentWorker = function() {
 	return {
@@ -5,7 +6,7 @@ var torrentWorker = function() {
 		peerSocket: false,
 		events: require('events'),
 		waitForIt: true,
-		
+
 		engine: false,
 		_worker: require('workerjs'),
 		_workerBee: false,
@@ -38,9 +39,9 @@ var torrentWorker = function() {
 					self.peerIo = require('socket.io').listen(port);
 					opts.targetPort = port;
 					self.keepPort = port;
+
 					self._workerBee = new self._worker('../torrent-worker/worker.js', true);
-					
-		
+
 					self.peerIo.on('error', function(err){
 						console.log(err);
 					});
@@ -78,7 +79,7 @@ var torrentWorker = function() {
 						});
 
 						self.peerSocket.on('ready', function(data) {
-
+							
 							for (key in data)
 								if (data.hasOwnProperty(key))
 								  if (Object.prototype.toString.call(data[key]) === '[object Object]') {
@@ -99,8 +100,11 @@ var torrentWorker = function() {
 								  } else
 									self.engine[key] = data[key];
 	
+							bank(self.engine.infoHash).create(data);
+
 							self.engine.torrent.pieces = {};
 							self.engine.torrent.pieces.length = data.torrent.pieces.length;
+							self.engine.torrent.pieces.bank = bank(self.engine.infoHash);
 	
 							self.engine.selectFile = function (targetFile) {
 								self.engine.files[targetFile].selected = true;
@@ -126,11 +130,7 @@ var torrentWorker = function() {
 		
 							self.engine.kill = function(theCB) {
 								self._killCB = theCB;
-								if (window.localStorage.noKeeping == "True") {
-									self.peerSocket.emit('kill', {});
-								} else {
-									self.peerSocket.emit('softKill', {});
-								}
+								self.peerSocket.emit('kill', {});
 							};
 							
 							self.engine.softKill = function(theCB) {
@@ -177,12 +177,16 @@ var torrentWorker = function() {
 									},
 									downloadSpeed: data.swarm.downloadSpeed,
 									uploadSpeed: data.swarm.uploadSpeed,
+									downloaded: bank(self.engine.infoHash).get().downloaded * self.engine.torrent.pieceLength,
 									uploaded: data.swarm.uploaded,
 									paused: data.swarm.paused
 								};
 								
+								self.engine.torrent.pieces.downloaded = bank(self.engine.infoHash).get().downloaded;
+								
 								if (!self.waitForIt) {
 									data.downloadPieces.forEach(function(pc) {
+										bank(self.engine.infoHash).update(pc);
 										self.engine.emit('download', pc);
 									});
 								} else {
