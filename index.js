@@ -1,10 +1,39 @@
 var bank = require('./lib/piece-bank');
+var events = require('events');
+
+function convertToMagnet(torLink) {
+	var newMagnet = {};
+	
+	if (torLink && torLink.pieces) {
+
+		if (torLink.name) {
+			newMagnet.dn = torLink.name;
+			newMagnet.name = torLink.name;
+		}
+
+		if (torLink.infoHash) {
+			newMagnet.infoHash = torLink.infoHash;
+			newMagnet.xt = 'urn:btih' + torLink.infoHash.toUpperCase();
+		}
+
+		if (torLink.announce) {
+			newMagnet.announce = torLink.announce;
+			newMagnet.tr = torLink.announce;
+		}
+
+	} else {
+		
+		newMagnet = torLink;
+		
+	}
+	
+	return newMagnet;
+}
 
 var torrentWorker = function() {
 	return {
 		peerIo: false,
 		peerSocket: false,
-		events: require('events'),
 		waitForIt: true,
 
 		engine: false,
@@ -28,10 +57,11 @@ var torrentWorker = function() {
 			server.on('error', function (err) { selfie._unusedPort(cb) });
 		},
 		process: function(torLink, opts) {
+			torLink = convertToMagnet(torLink);
 			this._queuedPieces = [];
 			this.waitForIt = true;
 			if (this.engine) this.engine.removeAllListeners();
-			this.engine = new this.events.EventEmitter();
+			this.engine = new events.EventEmitter();
 			opts.target = torLink;
 			if (!this._workerBee) {
 				var self = this;
@@ -47,7 +77,7 @@ var torrentWorker = function() {
 					});
 		
 					self.peerIo.on('connection', function(pSocket){
-						
+
 						self.peerSocket = pSocket;
 						
 						self.peerSocket.on('cry', function(err) {
@@ -267,7 +297,7 @@ var torrentWorker = function() {
 						});
 	
 					});
-		
+
 					self._workerBee.postMessage(opts);
 					
 				});
