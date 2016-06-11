@@ -19,7 +19,7 @@ function attachListeners() {
 			}
 		});
 	});
-	
+
 	engine.on('ready', function () {
 		var newFiles = [];
 		engine.files.forEach(function(el, ij) {
@@ -58,7 +58,7 @@ function attachListeners() {
 		});
 		isReady = true;
 	});
-	
+
 	if (!withResume) {
 		engine.on('download',function(pc) {
 			downloadQueue.push(pc);
@@ -71,7 +71,7 @@ function attachListeners() {
 }
 
 self.onmessage = function(msg) {
-	
+
 	if (!socket) {
 		var objective = msg.data;
 		if (objective.withResume) {
@@ -81,31 +81,34 @@ self.onmessage = function(msg) {
 		}
 		var torLink = objective.target;
 		var powPort = objective.targetPort;
-		
+
 		socket = io.connect('http://localhost:'+powPort, {reconnect: true});
-		
+
 		delete objective.target;
 		delete objective.targetPort;
-		
-		
+
 		if (objective.torFile) {
 			var parseTorrent = require('parse-torrent');
 			var torLink = parseTorrent(require('fs').readFileSync(objective.torFile));
 		}
-	
+
 		engine = peerflix(torLink,objective);
 		isReady = false;
-		
+
 		attachListeners(engine);
-			
+
+		socket.on('setProfile', function (data) {
+			engine.setProfile(data);
+		});
+
 		socket.on('setPulse', function (data) {
 			engine.setPulse(data);
 		});
-		
+
 		socket.on('flood', function () {
 			engine.flood();
 		});
-		
+
 		socket.on('kill', function () {
 			isReady = false;
 			clearInterval(infoInterval);
@@ -155,7 +158,6 @@ self.onmessage = function(msg) {
 			}(targetEngine));
 		});
 
-		
 		socket.on('softKill', function () {
 			clearInterval(infoInterval);
 			panicTimeout = setTimeout(function() {
@@ -172,7 +174,7 @@ self.onmessage = function(msg) {
 				}
 			}(targetEngine));
 		});
-		
+
 		socket.on('engineDestroy', function () {
 			isReady = false;
 			engine.destroy(function() {
@@ -180,7 +182,7 @@ self.onmessage = function(msg) {
 				socket.disconnect();
 			});
 		});
-		
+
 		socket.on('engineRemove', function () {
 			engine.remove(function() {
 				if (engine.files[0].path.indexOf('/') > -1) {
@@ -205,50 +207,50 @@ self.onmessage = function(msg) {
 				}
 			});
 		});
-		
+
 		socket.on('error', function(err) {
 			socket.emit('error', err);
 		});
-		
+
 		socket.on('discover', function () {
 			if (engine) {
 				engine.discover();
 				engine.swarm.reconnectAll();
 			}
 		});
-	
+
 		socket.on('serverClose', function () {
 			engine.server.close(function() {
 				socket.emit('serverClosed', {});
 			});
 		});
-	
+
 		socket.on('swarmSetPaused', function (data) {
 			engine.swarm.paused = data;
 		});
-		
+
 		socket.on('listen', function () {
 			engine.listen();
 		});
-		
+
 		socket.on('selectFile', function (data) {
 			engine.files[data].select();
 		});
-		
+
 		socket.on('deselectFile', function (data) {
 			engine.files[data].deselect();
 		});
-		
+
 		socket.on('reset', function(objective) {
 			torLink = objective.target;
 			delete objective.target;
 			engine = peerflix(torLink,objective);
 
 			isReady = false;
-			
+
 			attachListeners(engine);
 		});
-		
+
 		infoInterval = setInterval(function() {
 			if (isReady) {
 				var newFiles = [];
@@ -278,7 +280,7 @@ self.onmessage = function(msg) {
 				downloadQueue = [];
 			}
 		},1000);
-		
+
 	}
 
 };

@@ -3,7 +3,7 @@ var events = require('events');
 
 function convertToMagnet(torLink) {
 	var newMagnet = {};
-	
+
 	if (torLink && torLink.pieces) {
 
 		if (torLink.name) {
@@ -22,11 +22,11 @@ function convertToMagnet(torLink) {
 		}
 
 	} else {
-		
+
 		newMagnet = torLink;
-		
+
 	}
-	
+
 	return newMagnet;
 }
 
@@ -75,27 +75,27 @@ var torrentWorker = function() {
 					self.peerIo.on('error', function(err){
 						console.log(err);
 					});
-		
+
 					self.peerIo.on('connection', function(pSocket){
 
 						self.peerSocket = pSocket;
-						
+
 						self.peerSocket.on('cry', function(err) {
 							console.log(err);
 						});
-						
+
 						self.peerSocket.on('error', function(err) {
 							console.log(err);
 						});
-						
+
 						self.peerSocket.on('interested', function(data) {
 							self.engine.emit('interested');
 						});
-		
+
 						self.peerSocket.on('uninterested', function(data) {
 							self.engine.emit('uninterested');
 						});
-		
+
 						self.peerSocket.on('listening', function(data) {
 							self.engine.server = data;
 							self.engine.server.address = function() {
@@ -109,7 +109,7 @@ var torrentWorker = function() {
 						});
 
 						self.peerSocket.on('ready', function(data) {
-							
+
 							for (key in data)
 								if (data.hasOwnProperty(key))
 								  if (Object.prototype.toString.call(data[key]) === '[object Object]') {
@@ -129,63 +129,67 @@ var torrentWorker = function() {
 										  }
 								  } else
 									self.engine[key] = data[key];
-	
+
 							bank(self.engine.infoHash).create(data);
 
 							self.engine.torrent.pieces = {};
 							self.engine.torrent.pieces.length = data.torrent.pieces.length;
 							self.engine.torrent.pieces.bank = bank(self.engine.infoHash);
-	
+
+							self.engine.setProfile = function(profileData) {
+								self.peerSocket.emit('setProfile', profileData);
+							};
+
 							self.engine.selectFile = function (targetFile) {
 								self.engine.files[targetFile].selected = true;
 								self.peerSocket.emit('selectFile', targetFile);
 							}
-		
+
 							self.engine.deselectFile = function (targetFile) {
 								self.engine.files[targetFile].selected = false;
 								self.peerSocket.emit('deselectFile', targetFile);
 							}
-		
+
 							self.engine.flood = function() {
 								self.peerSocket.emit('flood', {});
 							};
-		
+
 							self.engine.setPulse = function(peerData) {
 								self.peerSocket.emit('setPulse', peerData);
 							};
-		
+
 							self.engine.discover = function() {
 								self.peerSocket.emit('discover', {});
 							};
-		
+
 							self.engine.kill = function(theCB) {
 								self._killCB = theCB;
 								self.peerSocket.emit('kill', {});
 							};
-							
+
 							self.engine.softKill = function(theCB) {
 								self._killCB = theCB;
 								self.peerSocket.emit('softKill', {});
 							};
-		
+
 							self.engine.swarmSetPaused = function() {
 								self.peerSocket.emit('swarmSetPaused', false);
 							};
-		
+
 							self.engine.destroy = function(theCB) {
 								self._destroyedCB = theCB;
 								self.peerSocket.emit('engineDestroy', {});
 							};
-		
+
 							self.engine.remove = function(theCB) {
 								self._removedCB = theCB;
 								self.peerSocket.emit('engineRemove', {});
 							};
-	
+
 							self.engine.files = data.files;
-							
+
 							self.engine.emit('ready');
-							
+
 							self.waitForIt = false;
 							if (self._queuedPieces.length) {
 								var holdQueued = self._queuedPieces;
@@ -197,7 +201,7 @@ var torrentWorker = function() {
 								},1000);
 							}
 						});
-						
+
 						self.peerSocket.on('info', function(data) {
 							if (self.engine) {
 								self.engine.amInterested = data.amInterested;
@@ -211,9 +215,9 @@ var torrentWorker = function() {
 									uploaded: data.swarm.uploaded,
 									paused: data.swarm.paused
 								};
-								
+
 								self.engine.torrent.pieces.downloaded = bank(self.engine.infoHash).get().downloaded;
-								
+
 								if (!self.waitForIt) {
 									data.downloadPieces.forEach(function(pc) {
 										bank(self.engine.infoHash).update(pc);
@@ -222,10 +226,10 @@ var torrentWorker = function() {
 								} else {
 									self._queuedPieces = self._queuedPieces.concat(data.downloadPieces);
 								}
-								
+
 							}
 						});
-						
+
 						self.peerSocket.on('killed', function(iHash) {
 							if (self._killCB) {
 								self._killCB();
@@ -234,7 +238,7 @@ var torrentWorker = function() {
 							if (self.engine.infoHash == iHash) self.waitForIt = true;
 
 							self.engine.emit('killed');
-							
+
 							// destroy this instance
 							self._workerBee.terminate();
 							if (self.peerIo.server) self.peerIo.server.close();
@@ -244,14 +248,14 @@ var torrentWorker = function() {
 //							});
 //							self.peerIo.removeAllListeners();
 							torrentWorker = null;
-							
+
 						});
 						
 						self.peerSocket.on('panic', function(iHash) {
 							if (self.engine.infoHash == iHash) self.waitForIt = true;
 
 							self.engine.emit('killed');
-							
+
 							// destroy this instance
 							self._workerBee.terminate();
 							if (self.peerIo.server) self.peerIo.server.close();
@@ -261,9 +265,9 @@ var torrentWorker = function() {
 //							});
 //							self.peerIo.removeAllListeners();
 							torrentWorker = null;
-							
+
 						});
-						
+
 						self.peerSocket.on('engineDestroyed', function(iHash) {
 							if (self._destroyedCB) {
 								self._destroyedCB();
@@ -281,25 +285,25 @@ var torrentWorker = function() {
 //							self.peerIo.removeAllListeners();
 							torrentWorker = null;
 						});
-						
+
 						self.peerSocket.on('engineRemoved', function(data) {
 							if (self._removedCB) {
 								self._removedCB();
 								delete self._removedCB;
 							}
 						});
-		
+
 						self.peerSocket.on('serverClosed', function(data) {
 							if (self._closedCB) {
 								self._closedCB();
 								delete self._closedCB;
 							}
 						});
-	
+
 					});
 
 					self._workerBee.postMessage(opts);
-					
+
 				});
 			} else {
 				this.peerSocket.emit('reset', opts);
