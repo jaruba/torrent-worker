@@ -16,8 +16,8 @@
     "url": "git://github.com/jaruba/torrent-worker.git"
   },
   "dependencies": {
-    "socket.io": "*",
-    "socket.io-client": "*",
+    "socket.io": "1.4.6",
+    "socket.io-client": "1.4.6",
     "parse-torrent": "*",
     "peerflix": "jaruba/peerflix"
   }
