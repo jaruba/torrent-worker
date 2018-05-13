@@ -203,7 +203,7 @@ var torrentWorker = function() {
 						});
 
 						self.peerSocket.on('info', function(data) {
-							if (self.engine) {
+							if (self.engine && self.engine.infoHash) {
 								self.engine.amInterested = data.amInterested;
 								self.engine.swarm = {
 									wires: {
