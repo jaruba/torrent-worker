@@ -116,7 +116,7 @@ self.onmessage = function(msg) {
 				socket.emit('panic');
 			},3000);
 			var targetEngine = engine;
-			targetEngine.server.close(function(dyingEngine) {
+			targetEngine.server.destroy(function(dyingEngine) {
 				return function() {
 					dyingEngine.remove(function(deadEngine) {
 						return function() {
