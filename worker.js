@@ -56,6 +56,11 @@ function attachListeners() {
 				paused: engine.swarm.paused,
 			}
 		});
+
+		engine.on('complete', function () {
+			socket.emit('complete')
+		});
+
 		isReady = true;
 	});
 

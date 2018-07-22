@@ -230,6 +230,10 @@ var torrentWorker = function() {
 							}
 						});
 
+						self.peerSocket.on('complete', function(data) {
+							self.engine.emit('complete');
+						});
+
 						self.peerSocket.on('killed', function(iHash) {
 							if (self._killCB) {
 								self._killCB();
