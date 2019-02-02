@@ -19,6 +19,6 @@
     "socket.io": "1.4.6",
     "socket.io-client": "jaruba/socket.io-client",
     "parse-torrent": "*",
-    "peerflix": "jaruba/peerflix#507ccaea52992af1f93202820a00a20570a8f2f4"
+    "peerflix": "jaruba/peerflix"
   }
 }
