@@ -1,5 +1,7 @@
 var bank = require('./lib/piece-bank');
 var events = require('events');
+var path = require('path')
+var child = require('child_process')
 
 function convertToMagnet(torLink) {
 	var newMagnet = {};
@@ -37,7 +39,7 @@ var torrentWorker = function() {
 		waitForIt: true,
 
 		engine: false,
-		_worker: require('workerjs'),
+		_worker: require('torrent-thread'),
 		_workerBee: false,
 		_destroyedCB: false,
 		_removedCB: false,
@@ -63,14 +65,18 @@ var torrentWorker = function() {
 			if (this.engine) this.engine.removeAllListeners();
 			this.engine = new events.EventEmitter();
 			opts.target = torLink;
+			this.opts = opts
+
 			if (!this._workerBee) {
 				var self = this;
 				this._unusedPort(function(port) {
 					self.peerIo = require('socket.io').listen(port);
-					opts.targetPort = port;
+
 					self.keepPort = port;
 
-					self._workerBee = new self._worker('../torrent-worker/worker.js', true);
+					self._workerBee = self._worker(port)
+
+//					self._workerBee = child.exec('"' + path.join(__dirname, 'build', 'worker-macos-x64') + '" --powPort=' + port)
 
 					self.peerIo.on('error', function(err){
 						console.log(err);
@@ -79,6 +85,10 @@ var torrentWorker = function() {
 					self.peerIo.on('connection', function(pSocket){
 
 						self.peerSocket = pSocket;
+
+						self.peerSocket.on('wantOpts', function() {
+							self.peerSocket.emit('giveOpts', self.opts);
+						})
 
 						self.peerSocket.on('cry', function(err) {
 							console.log(err);
@@ -244,7 +254,7 @@ var torrentWorker = function() {
 							self.engine.emit('killed');
 
 							// destroy this instance
-							self._workerBee.terminate();
+							self._workerBee.kill('SIGINT');
 							if (self.peerIo.server) self.peerIo.server.close();
 //							self.peerSocket.removeAllListeners();
 //							self.peerSocket.on('error', function(err) {
@@ -261,7 +271,7 @@ var torrentWorker = function() {
 							self.engine.emit('killed');
 
 							// destroy this instance
-							self._workerBee.terminate();
+							self._workerBee.kill('SIGINT');
 							if (self.peerIo.server) self.peerIo.server.close();
 //							self.peerSocket.removeAllListeners();
 //							self.peerSocket.on('error', function(err) {
@@ -280,7 +290,7 @@ var torrentWorker = function() {
 							if (self.engine.infoHash == iHash) self.waitForIt = true;
 
 							// destroy this instance
-							self._workerBee.terminate();
+							self._workerBee.kill('SIGINT');
 							if (self.peerIo.server) self.peerIo.server.close();
 //							self.peerSocket.removeAllListeners();
 //							self.peerSocket.on('error', function(err) {
@@ -306,11 +316,9 @@ var torrentWorker = function() {
 
 					});
 
-					self._workerBee.postMessage(opts);
-
 				});
 			} else {
-				this.peerSocket.emit('reset', opts);
+				this.peerSocket.emit('reset', this.opts);
 			}
 
 			return this.engine;

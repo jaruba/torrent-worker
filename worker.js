@@ -75,217 +75,231 @@ function attachListeners() {
 	}
 }
 
-self.onmessage = function(msg) {
+function runEngine(obj, powPort) {
+	var objective = obj;
+	if (objective.withResume) {
+		withResume = true;
+	} else {
+		withResume = false;
+	}
+	var torLink = objective.target;
+	objective.targetPort = powPort;
 
-	if (!socket) {
-		var objective = msg.data;
-		if (objective.withResume) {
-			withResume = true;
-		} else {
-			withResume = false;
-		}
-		var torLink = objective.target;
-		var powPort = objective.targetPort;
+	delete objective.target;
+	delete objective.targetPort;
 
-		socket = io.connect('http://localhost:'+powPort, {reconnect: true});
+	if (objective.torFile) {
+		var parseTorrent = require('parse-torrent');
+		var torLink = parseTorrent(require('fs').readFileSync(objective.torFile));
+	}
 
-		delete objective.target;
-		delete objective.targetPort;
+	engine = peerflix(torLink,objective);
+	isReady = false;
 
-		if (objective.torFile) {
-			var parseTorrent = require('parse-torrent');
-			var torLink = parseTorrent(require('fs').readFileSync(objective.torFile));
-		}
+	attachListeners(engine);
 
-		engine = peerflix(torLink,objective);
+	socket.on('setProfile', function (data) {
+		engine.setProfile(data);
+	});
+
+	socket.on('setPulse', function (data) {
+		engine.setPulse(data);
+	});
+
+	socket.on('flood', function () {
+		engine.flood();
+	});
+
+	socket.on('kill', function () {
 		isReady = false;
-
-		attachListeners(engine);
-
-		socket.on('setProfile', function (data) {
-			engine.setProfile(data);
-		});
-
-		socket.on('setPulse', function (data) {
-			engine.setPulse(data);
-		});
-
-		socket.on('flood', function () {
-			engine.flood();
-		});
-
-		socket.on('kill', function () {
-			isReady = false;
-			clearInterval(infoInterval);
-			panicTimeout = setTimeout(function() {
-				socket.emit('panic');
-			},3000);
-			var targetEngine = engine;
-			targetEngine.server.destroy(function(dyingEngine) {
-				return function() {
-					dyingEngine.remove(function(deadEngine) {
-						return function() {
-							if (deadEngine.files[0].path.indexOf('/') > -1) {
-								var pathBreak = '/';
-								var folder = deadEngine.files[0].path.substr(0, deadEngine.files[0].path.indexOf('/'));
-							} else if (deadEngine.files[0].path.indexOf('\\') > -1) {
-								var pathBreak = '\\';
-								var folder = deadEngine.files[0].path.substr(0, deadEngine.files[0].path.indexOf('\\'));
-							}
-							if (folder) {
-								fs.lstat(deadEngine.path + pathBreak + folder, function(err, flData) {
-									if (!err && flData && flData.isDirectory()) {
-										fs.rmdir(deadEngine.path + pathBreak + folder, function() {
-											deadEngine.destroy(function() {
-												clearTimeout(panicTimeout);
-												socket.emit('killed',deadEngine.infoHash);
-												socket.disconnect();
-											});
-										});
-									} else {
+		clearInterval(infoInterval);
+		panicTimeout = setTimeout(function() {
+			socket.emit('panic');
+		},3000);
+		var targetEngine = engine;
+		targetEngine.server.destroy(function(dyingEngine) {
+			return function() {
+				dyingEngine.remove(function(deadEngine) {
+					return function() {
+						if (deadEngine.files[0].path.indexOf('/') > -1) {
+							var pathBreak = '/';
+							var folder = deadEngine.files[0].path.substr(0, deadEngine.files[0].path.indexOf('/'));
+						} else if (deadEngine.files[0].path.indexOf('\\') > -1) {
+							var pathBreak = '\\';
+							var folder = deadEngine.files[0].path.substr(0, deadEngine.files[0].path.indexOf('\\'));
+						}
+						if (folder) {
+							fs.lstat(deadEngine.path + pathBreak + folder, function(err, flData) {
+								if (!err && flData && flData.isDirectory()) {
+									fs.rmdir(deadEngine.path + pathBreak + folder, function() {
 										deadEngine.destroy(function() {
 											clearTimeout(panicTimeout);
 											socket.emit('killed',deadEngine.infoHash);
 											socket.disconnect();
 										});
-									}
-								});
-							} else {
-								deadEngine.destroy(function() {
-									clearTimeout(panicTimeout);
-									socket.emit('killed',deadEngine.infoHash);
-									socket.disconnect();
-								});
-							}
-						}
-					}(dyingEngine));
-				}
-			}(targetEngine));
-		});
-
-		socket.on('softKill', function () {
-			clearInterval(infoInterval);
-			panicTimeout = setTimeout(function() {
-				socket.emit('panic');
-			},3000);
-			var targetEngine = engine;
-			targetEngine.server.close(function(dyingEngine) {
-				return function() {
-					dyingEngine.destroy(function() {
-						clearTimeout(panicTimeout);
-						socket.emit('killed', dyingEngine.infoHash);
-						socket.disconnect();
-					});
-				}
-			}(targetEngine));
-		});
-
-		socket.on('engineDestroy', function () {
-			isReady = false;
-			engine.destroy(function() {
-				socket.emit('engineDestroyed', engine.infoHash);
-				socket.disconnect();
-			});
-		});
-
-		socket.on('engineRemove', function () {
-			engine.remove(function() {
-				if (engine.files[0].path.indexOf('/') > -1) {
-					var pathBreak = '/';
-					var folder = engine.files[0].path.substr(0, engine.files[0].path.indexOf('/'));
-				} else if (engine.files[0].path.indexOf('\\') > -1) {
-					var pathBreak = '\\';
-					var folder = engine.files[0].path.substr(0, engine.files[0].path.indexOf('\\'));
-				}
-				if (folder) {
-					fs.lstat(engine.path + pathBreak + folder, function(err, flData) {
-						if (!err && flData && flData.isDirectory()) {
-							fs.rmdir(engine.path + pathBreak + folder, function() {
-								socket.emit('engineRemoved', {});
+									});
+								} else {
+									deadEngine.destroy(function() {
+										clearTimeout(panicTimeout);
+										socket.emit('killed',deadEngine.infoHash);
+										socket.disconnect();
+									});
+								}
 							});
 						} else {
-							socket.emit('engineRemoved', {});
+							deadEngine.destroy(function() {
+								clearTimeout(panicTimeout);
+								socket.emit('killed',deadEngine.infoHash);
+								socket.disconnect();
+							});
 						}
-					});
-				} else {
-					socket.emit('engineRemoved', {});
-				}
-			});
-		});
+					}
+				}(dyingEngine));
+			}
+		}(targetEngine));
+	});
 
-		socket.on('error', function(err) {
-			socket.emit('error', err);
-		});
+	socket.on('softKill', function () {
+		clearInterval(infoInterval);
+		panicTimeout = setTimeout(function() {
+			socket.emit('panic');
+		},3000);
+		var targetEngine = engine;
+		targetEngine.server.close(function(dyingEngine) {
+			return function() {
+				dyingEngine.destroy(function() {
+					clearTimeout(panicTimeout);
+					socket.emit('killed', dyingEngine.infoHash);
+					socket.disconnect();
+				});
+			}
+		}(targetEngine));
+	});
 
-		socket.on('discover', function () {
-			if (engine) {
-				engine.discover();
-				engine.swarm.reconnectAll();
+	socket.on('engineDestroy', function () {
+		isReady = false;
+		engine.destroy(function() {
+			socket.emit('engineDestroyed', engine.infoHash);
+			socket.disconnect();
+		});
+	});
+
+	socket.on('engineRemove', function () {
+		engine.remove(function() {
+			if (engine.files[0].path.indexOf('/') > -1) {
+				var pathBreak = '/';
+				var folder = engine.files[0].path.substr(0, engine.files[0].path.indexOf('/'));
+			} else if (engine.files[0].path.indexOf('\\') > -1) {
+				var pathBreak = '\\';
+				var folder = engine.files[0].path.substr(0, engine.files[0].path.indexOf('\\'));
+			}
+			if (folder) {
+				fs.lstat(engine.path + pathBreak + folder, function(err, flData) {
+					if (!err && flData && flData.isDirectory()) {
+						fs.rmdir(engine.path + pathBreak + folder, function() {
+							socket.emit('engineRemoved', {});
+						});
+					} else {
+						socket.emit('engineRemoved', {});
+					}
+				});
+			} else {
+				socket.emit('engineRemoved', {});
 			}
 		});
+	});
 
-		socket.on('serverClose', function () {
-			engine.server.close(function() {
-				socket.emit('serverClosed', {});
-			});
+	socket.on('error', function(err) {
+		socket.emit('error', err);
+	});
+
+	socket.on('discover', function () {
+		if (engine) {
+			engine.discover();
+			engine.swarm.reconnectAll();
+		}
+	});
+
+	socket.on('serverClose', function () {
+		engine.server.close(function() {
+			socket.emit('serverClosed', {});
 		});
+	});
 
-		socket.on('swarmSetPaused', function (data) {
-			engine.swarm.paused = data;
-		});
+	socket.on('swarmSetPaused', function (data) {
+		engine.swarm.paused = data;
+	});
 
-		socket.on('listen', function () {
-			engine.listen();
-		});
+	socket.on('listen', function () {
+		engine.listen();
+	});
 
-		socket.on('selectFile', function (data) {
-			engine.files[data].select();
-		});
+	socket.on('selectFile', function (data) {
+		engine.files[data].select();
+	});
 
-		socket.on('deselectFile', function (data) {
-			engine.files[data].deselect();
-		});
+	socket.on('deselectFile', function (data) {
+		engine.files[data].deselect();
+	});
 
-		socket.on('reset', function(objective) {
-			torLink = objective.target;
-			delete objective.target;
-			engine = peerflix(torLink,objective);
+	socket.on('reset', function(objective) {
+		torLink = objective.target;
+		delete objective.target;
+		engine = peerflix(torLink,objective);
 
-			isReady = false;
+		isReady = false;
 
-			attachListeners(engine);
-		});
+		attachListeners(engine);
+	});
 
-		infoInterval = setInterval(function() {
-			if (isReady) {
-				var newFiles = [];
-				engine.files.forEach(function(el, ij) {
-					newFiles.push({
-						selected: el.selected,
-						name: el.name,
-						length: el.length,
-						offset: el.offset,
-						path: el.path
-					});
+	infoInterval = setInterval(function() {
+		if (isReady) {
+			var newFiles = [];
+			engine.files.forEach(function(el, ij) {
+				newFiles.push({
+					selected: el.selected,
+					name: el.name,
+					length: el.length,
+					offset: el.offset,
+					path: el.path
 				});
-				socket.emit('info', {
-					amInterested: engine.amInterested,
-					files: newFiles,
-					swarm: {
-						wires: {
-							length: engine.swarm.wires.length
-						},
-						downloadSpeed: engine.swarm.downloadSpeed(),
-						uploadSpeed: engine.swarm.uploadSpeed(),
-						uploaded: engine.swarm.uploaded,
-						paused: engine.swarm.paused
+			});
+			socket.emit('info', {
+				amInterested: engine.amInterested,
+				files: newFiles,
+				swarm: {
+					wires: {
+						length: engine.swarm.wires.length
 					},
-					downloadPieces: downloadQueue
-				});
-				downloadQueue = [];
+					downloadSpeed: engine.swarm.downloadSpeed(),
+					uploadSpeed: engine.swarm.uploadSpeed(),
+					uploaded: engine.swarm.uploaded,
+					paused: engine.swarm.paused
+				},
+				downloadPieces: downloadQueue
+			});
+			downloadQueue = [];
+		}
+	},1000);
+}
+
+function connectIo(powPort) {
+	if (!socket) {
+		socket = io.connect('http://127.0.0.1:'+powPort, { reconnect: true })
+		function connectedIo() {
+			socket.removeListener('connect', connectIo)
+			function gotOpts(data) {
+				socket.removeListener('giveOpts', gotOpts)
+				runEngine(data, powPort)
 			}
-		},1000);
-
+			socket.on('giveOpts', gotOpts)
+			socket.emit('wantOpts', {})
+		}
+		socket.on('connect', connectedIo)
 	}
+}
 
-};
+process.argv.forEach( el => {
+	if (el.startsWith('--powPort='))
+		connectIo(el.split('=')[1])
+})
