@@ -2,6 +2,8 @@ var peerflix = require('peerflix');
 var io = require('socket.io-client');
 var fs = require('fs');
 
+var rimraf = require('rimraf')
+
 var downloadQueue = [];
 var infoInterval = false;
 var panicTimeout = false;
@@ -131,7 +133,7 @@ function runEngine(obj, powPort) {
 						if (folder) {
 							fs.lstat(deadEngine.path + pathBreak + folder, function(err, flData) {
 								if (!err && flData && flData.isDirectory()) {
-									fs.rmdir(deadEngine.path + pathBreak + folder, function() {
+									rimraf(deadEngine.path + pathBreak + folder, { maxBusyTries: 100 }, (err, data) => {
 										deadEngine.destroy(function() {
 											clearTimeout(panicTimeout);
 											socket.emit('killed',deadEngine.infoHash);
