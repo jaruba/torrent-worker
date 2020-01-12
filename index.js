@@ -58,7 +58,7 @@ var torrentWorker = function() {
 			})
 			server.on('error', function (err) { selfie._unusedPort(cb) });
 		},
-		process: function(torLink, opts) {
+		process: function(torLink, opts, errCb) {
 			torLink = convertToMagnet(torLink);
 			this._queuedPieces = [];
 			this.waitForIt = true;
@@ -70,11 +70,29 @@ var torrentWorker = function() {
 			if (!this._workerBee) {
 				var self = this;
 				this._unusedPort(function(port) {
+
 					self.peerIo = require('socket.io').listen(port);
 
 					self.keepPort = port;
 
 					self._workerBee = self._worker(port)
+
+					var errorLog = ''
+
+					self._workerBee.stderr.on('data', (data) => {
+						if (data)
+						    errorLog += data.toString()
+					});
+
+					function catchTorrentError(code) {
+					  console.log(`torrent child process exited with code ${code}`);
+					  if (errorLog)
+					  	console.log(errorLog)
+					  if (errCb)
+					  	errCb(code)
+					}
+
+					self._workerBee.on('close', catchTorrentError);
 
 //					self._workerBee = child.exec('"' + path.join(__dirname, 'build', 'worker-macos-x64') + '" --powPort=' + port)
 
@@ -107,6 +125,7 @@ var torrentWorker = function() {
 						});
 
 						self.peerSocket.on('listening', function(data) {
+							self._workerBee.removeListener('close', catchTorrentError)
 							self.engine.server = data;
 							self.engine.server.address = function() {
 								return { port: data.port }
