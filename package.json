@@ -23,5 +23,8 @@
     "socket.io-client": "jaruba/socket.io-client",
     "parse-torrent": "*",
     "peerflix": "jaruba/peerflix"
+  },
+  "scripts": {
+    "build": "pkg worker.js --out-path build/ --targets linux-x64,macos-x64,win-x64,linux-x86,macos-x86,win-x86"
   }
 }
